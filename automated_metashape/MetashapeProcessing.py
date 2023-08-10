@@ -78,10 +78,7 @@ class AutomatedProcessing:
     def init_workspace(self):
         self.run_name = self.cfg["run_name"]
         self.run_id = "_".join([self.run_name,stamp_time()])
-        self.project_file = Path(
-            self.cfg["project_path"], 
-            '.'.join([self.run_id, 'psx']) 
-            )
+        self.project_file = self.cfg["project_path"] / (self.run_id + '.psx')
         
         self._init_filesystem()
         self._init_logging()
@@ -112,8 +109,7 @@ class AutomatedProcessing:
         
         if not self.cfg["project_path"].exists():
             self.cfg["project_path"].mkdir(parents=True)
-        if not self.cfg["project_path"].exists():
-            self.cfg["project_path"].mkdir(parents=True)
+
         
 
     def _init_logging(self):
@@ -229,11 +225,13 @@ class AutomatedProcessing:
                 self.logger.warning("Overwriting original Metashape project enabled. " + \
                                     "Cancel run and disable self.cfg['enable_overwrite'] if unwanted behaviour!")
                 self.project_file = self.cfg["load_project_path"].resolve().with_suffix('.psx')
+                self.doc.read_only=False
         else:
             # Initialize a chunk, set its CRS as specified
             self.logger.info(f'Creating new project...')
             self.chunk = self.doc.addChunk()
-            self.chunk.crs = Metashape.CoordinateSystem(self.cfg["project_crs"])
+            self.crs = Metashape.CoordinateSystem(self.cfg["project_crs"])
+            self.chunk.crs = self.crs
 
             # Save doc doc as new project (even if we opened an existing project, save as a separate one so the existing project remains accessible in its original state)
             self.doc.save(str(self.project_file.resolve().as_posix()))
@@ -331,6 +329,13 @@ class AutomatedProcessing:
             if self.cfg["subdivide_task"]: 
                 self.cfg["buildContours"]["subdivide_task"] = self.cfg["subdivide_task"]
             self.build_contours()
+        
+        if "buildOthomosaic" in self.cfg and self.cfg["buildOthomosaic"]["enabled"]:
+            # TODO: find a nicer way to add subdivide_task to all dicts
+            if self.cfg["subdivide_task"]: 
+                self.cfg["buildOthomosaic"]["subdivide_task"] = self.cfg["subdivide_task"]
+            self.build_orthomosaic()
+        
             
             
         self.export_report()
@@ -344,8 +349,10 @@ class AutomatedProcessing:
         
         self._terminate_logging()
             
+    def close(self):
+        self.doc.clear()
         del self.doc
-            
+
     def _encode_task(self, task):
         """
         All tasks need to be encoded before submission to the Agisoft Metashape Network.
@@ -699,6 +706,7 @@ class AutomatedProcessing:
             self.logger.info('Alignment-optimisation task added to network batch list.'+self._return_parameters(stage="optimizeCameras"))
             
         else:
+            # self.doc.chunk.primary_channel=3
             self.doc.chunk.optimizeCameras(
                 **optimize_parameters
                 )
@@ -997,46 +1005,57 @@ class AutomatedProcessing:
             self.doc.save()
             self.logger.info('Contours extracted.'+self._return_parameters(stage="buildContours"))
             
-        def build_dem(self):
-            '''
-            Build dem
-            '''
+    def build_dem(self):
+        '''
+        Build dem
+        '''
 
-            self.logger.info('Generating DEM...')
+        self.logger.info('Generating DEM...')
 
-            buildDEM_dict = [
-                "source_data",
-                "interpolation",
-                "projection",
-                "region",
-                "classes",
-                "flip_x",
-                "flip_y",
-                "flip_z",
-                "resolution",
-                "subdivide_task",
-                "workitem_size_tiles",
-                "max_workgroup_size"
-                ]
+        buildDEM_dict = [
+            "source_data",
+            "interpolation",
+            "projection",
+            "region",
+            "classes",
+            "flip_x",
+            "flip_y",
+            "flip_z",
+            "resolution",
+            "subdivide_task",
+            "workitem_size_tiles",
+            "max_workgroup_size"
+            ]
 
-            dem_parameters = {}
-            for key, value in self.cfg["buildDEM"].items():
-                if key in buildDEM_dict:
-                    dem_parameters[key] = value 
+        dem_parameters = {}
+        for key, value in self.cfg["buildDEM"].items():
+            if key in buildDEM_dict:
+                dem_parameters[key] = value 
 
-            if self.network:
-                # build dem
-                task = Metashape.Tasks.BuildDem()
-                task.decode(dem_parameters)
-                self._encode_task(task)
-                self.logger.info('DEM generation task added to network batch list.'+self._return_parameters(stage="buildDEM"))
+        if self.network:
+            # build dem
+            task = Metashape.Tasks.BuildDem()
+            task.decode(dem_parameters)
+            self._encode_task(task)
+            self.logger.info('DEM generation task added to network batch list.'+self._return_parameters(stage="buildDEM"))
 
 
-            else:            
-                self.doc.chunk.buildDem(**dem_parameters)
-                self.doc.save()
-                self.logger.info('DEM constructed.'+self._return_parameters(stage="buildDEM"))
+        else:            
+            self.doc.chunk.buildDem(**dem_parameters)
+            self.doc.save()
+            self.logger.info('DEM constructed.'+self._return_parameters(stage="buildDEM"))
 
+    def build_orthomosaic(self):
+        self.logger.info('Building orthomosaic...')
+        cfg = self.cfg["buildOrthomosaic"].copy()
+        if "enabled" in cfg.keys():
+            cfg.pop("enabled", None)
+        if "project_crs" in self.cfg:
+            proj = Metashape.OrthoProjection()
+            proj.crs=Metashape.CoordinateSystem(self.cfg["project_crs"])
+        self.doc.chunk.buildOrthomosaic(projection=proj, **cfg)
+        self.doc.save()
+    
     def publish_data(self):
         """
         Function to automatically upload data to a service
