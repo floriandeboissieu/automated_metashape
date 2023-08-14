@@ -8,6 +8,9 @@ CHANGES
 * add method close (doc.clear and del doc) to AutomatedProcessing
 * add buildOrthomosaic
 
+* updated to Metashape 2.x.x api
+* Connect to Zenodo for versioning
+
 v0.1.12
 -------
 
