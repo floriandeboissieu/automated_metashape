@@ -1,6 +1,19 @@
 CHANGES
 =======
 
+* fix setup.cfg with upper case readme
+* fix buildDEM indentation
+* fix read_only to False (after project loading) when enable_overwrite is True
+* remove automatic closing at the end of init_tasks
+* add method close (doc.clear and del doc) to AutomatedProcessing
+* add buildOrthomosaic
+
+v0.1.12
+-------
+
+* clean-up v2
+* clean-up
+
 v0.1.11
 -------
 
@@ -14,10 +27,6 @@ v0.1.10
 -------
 
 * Update MetashapeProcessing.py
-
-v0.1.9
-------
-
 * Update MetashapeProcessing.py
 * added support for gcp accuracies and contours
 
