@@ -709,7 +709,6 @@ class AutomatedProcessing:
             self.logger.info('Alignment-optimisation task added to network batch list.'+self._return_parameters(stage="optimizeCameras"))
             
         else:
-            # self.doc.chunk.primary_channel=3
             self.doc.chunk.optimizeCameras(
                 **optimize_parameters
                 )
