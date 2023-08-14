@@ -468,7 +468,10 @@ class AutomatedProcessing:
             self.logger.info('Photo-analysis tasks added to network batch list.'+self._return_parameters(stage="analyzePhotos"))
 
         else:
-            self.doc.chunk.analyzePhotos()
+            if Metashape.version < "2.0":
+                self.doc.chunk.analyzePhotos()
+            else:
+                self.doc.chunk.analyzeImages()
             self.logger.info('Photos analyzed.')
             
             if "quality_cutoff" in self.cfg["analyzePhotos"]:
@@ -800,7 +803,10 @@ class AutomatedProcessing:
                 self.logger.info('Ground point classification task added to network batch list.')
             
         else:
-            self.doc.chunk.buildDenseCloud(**dense_parameters)
+            if Metashape.version < "2.0":
+                self.doc.chunk.buildDenseCloud(**dense_parameters)
+            else:
+                self.doc.chunk.buildPointCloud(**dense_parameters)
             self.doc.save()
             self.logger.info('Dense cloud built.')
                        
