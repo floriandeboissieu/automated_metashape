@@ -1048,14 +1048,24 @@ class AutomatedProcessing:
             self.logger.info('DEM constructed.'+self._return_parameters(stage="buildDEM"))
 
     def build_orthomosaic(self):
+        stage = "buildOrthomosaic"
         self.logger.info('Building orthomosaic...')
         cfg = self.cfg["buildOrthomosaic"].copy()
-        if "enabled" in cfg.keys():
-            cfg.pop("enabled", None)
-        if "project_crs" in self.cfg:
+        enabled = cfg.pop("enabled", None)
+        project_crs = cfg.pop("project_crs", None)
+        if project_crs is not None:
             proj = Metashape.OrthoProjection()
-            proj.crs=Metashape.CoordinateSystem(self.cfg["project_crs"])
-        self.doc.chunk.buildOrthomosaic(projection=proj, **cfg)
+            proj.crs=Metashape.CoordinateSystem(project_crs)
+            cfg["projection"] = proj
+        
+        if self.network:
+            task = Metashape.Tasks.BuildOrthomosaic()
+            task.encode(cfg)
+            self._encode_task(task)
+            self.logger.info('Orthomosaic generation added to network batch list.'+self._return_parameters(stage=stage))
+        else:
+            self.doc.chunk.buildOrthomosaic(**cfg)
+            self.logger.info('Orthomosaic builded'+self._return_parameters(stage=stage))
         self.doc.save()
     
     def publish_data(self):
